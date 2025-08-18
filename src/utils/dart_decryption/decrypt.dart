@@ -1,24 +1,26 @@
 import 'package:encrypt/encrypt.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
+import 'package:dotenv/dotenv.dart';
 
 void main(List<String> arguments) {
-  // 2025-08-20T08-00-00.json.enc.ttl
-  String ivSessionKey = "IYdp7PhLtZwuPV35nMph8Q==";
-  String sessionKey = "THkA2JGf1+kjnNLrN01GpEXsq4g2a87SgYG1GI4Dev5H43Wze9o+jtu2wQ28N7z+";
-  String securityKey = "thanh505";
-  String ivVal  = "MM3Q8NDMVOUgik92fSKUkg==";
-  String encVal = "MODMNcpRB9n5B6B1tFCdXjcOCpiXMOywMyqjLu83jvnfJZ9+Dp237HYjCSFjQzMALVs+yZHNtVLoIakepWOCGB/h2na8GhzNcvK20eXQZXY+TdeUTrQXOQAMpdnwCzvBVfrfzMVue6GaRF1dIlOL0AvRj8tYmj3YGNnxZE5P2+E=";
+  var env = DotEnv(includePlatformEnvironment: true)
+    ..load(['.env']);
+
+  String ivSessionKey = "On8cmqkhyZl6FcMuGDvYDw==";
+  String sessionKey = "K4tMlGni0PhTmv4Ew7NmF993KQP586phRPnJPy16lOfsLASZi0ecp9MPm+39+6rD"; 
+  String securityKey  = env['SECURITY_KEY'] ?? '';
+  String ivVal  = "n783AWllgyU7nC3ojnt0nw==";
+  String encVal = "GmwGTQBN6tJ9ugBwHJ/dExvI1JCO/uFwjv9LYgZJjUGEN/R+Ra0DVc7VOYq2LKaTxOueQ1lnXDiOT+NIeEeYOeRB71KIhifAxavENx3ha/tmUnoSUOEU2C0f5905WtCkZPfu4Q5OnJ8dBaqBzdyF+bWCEA/KM1ADZz+QnCz2uGc=";
 
   Key masterKey = genMasterKey(securityKey);
-  print(masterKey.base64);
+  print("Master Key: " + masterKey.base64);
 
   String decryptedSessionedKey = decryptData(sessionKey, masterKey, IV.fromBase64(ivSessionKey));
+  print("Decrypted Sessioned Key: " + decryptedSessionedKey);
 
-  String decryptedData = decryptData(encVal, masterKey, IV.fromBase64(ivVal));
-
-  print(decryptedData);
-
+  String decryptedData = decryptData(encVal, Key.fromBase64(decryptedSessionedKey), IV.fromBase64(ivVal));
+  print("Decrypted Data: " + decryptedData);
 
 }
 

@@ -74,6 +74,12 @@
       "languageVersion": "3.4"
     },
     {
+      "name": "dotenv",
+      "rootUri": "file:///Users/Admin/.pub-cache/hosted/pub.dev/dotenv-4.2.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.16"
+    },
+    {
       "name": "encrypt",
       "rootUri": "file:///Users/Admin/.pub-cache/hosted/pub.dev/encrypt-5.0.3",
       "packageUri": "lib/",

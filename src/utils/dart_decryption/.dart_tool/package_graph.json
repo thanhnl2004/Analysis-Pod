@@ -7,6 +7,7 @@
       "name": "decrypt_utils",
       "version": "0.1.0",
       "dependencies": [
+        "dotenv",
         "encrypt"
       ],
       "devDependencies": [
@@ -50,6 +51,14 @@
       "name": "lints",
       "version": "2.1.1",
       "dependencies": []
+    },
+    {
+      "name": "dotenv",
+      "version": "4.2.0",
+      "dependencies": [
+        "args",
+        "meta"
+      ]
     },
     {
       "name": "encrypt",
@@ -317,6 +326,16 @@
       ]
     },
     {
+      "name": "meta",
+      "version": "1.17.0",
+      "dependencies": []
+    },
+    {
+      "name": "args",
+      "version": "2.7.0",
+      "dependencies": []
+    },
+    {
       "name": "pointycastle",
       "version": "3.9.1",
       "dependencies": [
@@ -340,11 +359,6 @@
     {
       "name": "asn1lib",
       "version": "1.6.5",
-      "dependencies": []
-    },
-    {
-      "name": "args",
-      "version": "2.7.0",
       "dependencies": []
     },
     {
@@ -391,11 +405,6 @@
         "source_maps",
         "stack_trace"
       ]
-    },
-    {
-      "name": "meta",
-      "version": "1.17.0",
-      "dependencies": []
     },
     {
       "name": "glob",
