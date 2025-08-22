@@ -1,0 +1,35 @@
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
+@prefix solidTerms: <https://solidcommunity.au/predicates/terms#>.
+@prefix terms: <http://purl.org/dc/terms/>.
+
+<> terms:title "Individual Encryption Keys".
+<../data/profile/init.json> solidTerms:path "healthpod/data/profile/init.json";
+    solidTerms:iv "cYLgGlN8uo/7VoKzOvGJEQ==";
+    solidTerms:sessionKey "HrBhrCQqPdJ9ncXgpxW7k5BBO3sCqD+IYbvGBI67Y3EfkcNdokHZnvjtMeKD+gip".
+<../data/blood_pressure/init.json> solidTerms:path "healthpod/data/blood_pressure/init.json";
+    solidTerms:iv "/DsStam3h5bCXtdYi5VYxg==";
+    solidTerms:sessionKey "Yh+J1fVUTO795jm4duWoPNTVJD6vC1t1C2ATW73WUUHECEfZlKhj5W8p4aeS8lLL".
+<../data/pathology/init.json> solidTerms:path "healthpod/data/pathology/init.json";
+    solidTerms:iv "8QPxpv+7KrE5GojaEA9MeQ==";
+    solidTerms:sessionKey "pmNz+HaWh0OZQO6fyy6dkNWmWs2So3iPng2p1V8K6FNLGGc296KbddTmQ1p8dMUv".
+<../data/vaccination/init.json> solidTerms:path "healthpod/data/vaccination/init.json";
+    solidTerms:iv "uQXqmv880pykjDMySTAmMA==";
+    solidTerms:sessionKey "PHqn2yUpuv4JontyCnUis0H4/FAPO4gisTNgPQjF6UV//kAlfMkKZFPH27JFGOHo".
+<../data/medication/init.json> solidTerms:path "healthpod/data/medication/init.json";
+    solidTerms:iv "2GvUbxiJ0HYBPtt+sD8wKw==";
+    solidTerms:sessionKey "LRswTRvdfYJhxJbNtmxhmRvaPtsicyFbEYZt5BjtQoUVR0QWPPONZwe/9+3IAAce".
+<../data/diary/init.json> solidTerms:path "healthpod/data/diary/init.json";
+    solidTerms:iv "xtZPIfwCc+Dva75PMdgHVg==";
+    solidTerms:sessionKey "bbmgNwCWo7eN+smUER+Umxd2CIb8y1SVZb8v6m6CU7Cjc84DxvGsr0BGAoo5MLMn".
+<../data/health_plan/init.json> solidTerms:path "healthpod/data/health_plan/init.json";
+    solidTerms:iv "TweJkXwvDD4mPo+X8H0Fcg==";
+    solidTerms:sessionKey "g1POvfcphffZgsXJzI/UtsJV3t3vQnAVlG/oBRogeugRFViU7J/fh793KQrrBuZU".
+<../data/profile/profile_2025-08-19T03-40-41.json.enc.ttl> solidTerms:path "healthpod/data/profile/profile_2025-08-19T03-40-41.json.enc.ttl";
+    solidTerms:iv "HPw8vZExlsTwBUskf+uqhA==";
+    solidTerms:sessionKey "vuhylk6lswGsJ3p3mt+Jx24VYzzQmpJqZyPBj1N70kwXuyFSqmPPSAG6hhfYxaF1".
+<../data/blood_pressure/blood_pressure_2025-08-19T03-41-54.json.enc.ttl> solidTerms:path "healthpod/data/blood_pressure/blood_pressure_2025-08-19T03-41-54.json.enc.ttl";
+    solidTerms:iv "pmjps4MIlv4whgM+4rwdzg==";
+    solidTerms:sessionKey "JDPw1UZMjGD6PoZ8dPnbx0S3ZuULlvgr5VPqRMC/CnbWRhrNrd+tVKeTn0oLkDgr".
+<../data/blood_pressure/blood_pressure_2025-08-19T03-46-01.json.enc.ttl> solidTerms:path "healthpod/data/blood_pressure/blood_pressure_2025-08-19T03-46-01.json.enc.ttl";
+    solidTerms:iv "On8cmqkhyZl6FcMuGDvYDw==";
+    solidTerms:sessionKey "K4tMlGni0PhTmv4Ew7NmF993KQP586phRPnJPy16lOfsLASZi0ecp9MPm+39+6rD".

@@ -2,25 +2,43 @@ import 'package:encrypt/encrypt.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import 'package:dotenv/dotenv.dart';
+import 'dart:io';
+
 
 void main(List<String> arguments) {
   var env = DotEnv(includePlatformEnvironment: true)
     ..load(['.env']);
 
-  String ivSessionKey = "On8cmqkhyZl6FcMuGDvYDw==";
-  String sessionKey = "K4tMlGni0PhTmv4Ew7NmF993KQP586phRPnJPy16lOfsLASZi0ecp9MPm+39+6rD"; 
-  String securityKey  = env['SECURITY_KEY'] ?? '';
-  String ivVal  = "n783AWllgyU7nC3ojnt0nw==";
-  String encVal = "GmwGTQBN6tJ9ugBwHJ/dExvI1JCO/uFwjv9LYgZJjUGEN/R+Ra0DVc7VOYq2LKaTxOueQ1lnXDiOT+NIeEeYOeRB71KIhifAxavENx3ha/tmUnoSUOEU2C0f5905WtCkZPfu4Q5OnJ8dBaqBzdyF+bWCEA/KM1ADZz+QnCz2uGc=";
+  Map<String, Map<String, String>> keysData = parseIndKeysFile('ind-keys.ttl');
+  Map<String, String> bloodPressureData = parseBloodPressureFile('blood_pressure_2025-08-19T03-46-01.json.enc.ttl');
+  String targetPath = bloodPressureData['path']!;
+  String ivVal = bloodPressureData['iv']!;
+  String encVal = bloodPressureData['encData']!;
 
-  Key masterKey = genMasterKey(securityKey);
-  print("Master Key: " + masterKey.base64);
+  String? matchingKey;
+  for (String key in keysData.keys) {
+    if (keysData[key]!['path'] == targetPath) {
+      matchingKey = key;
+      break;
+    }
+  }
 
+  if (matchingKey == null) {
+    print("No matching key found for path: $targetPath");
+    return;
+  }
+
+  String sessionKey = keysData[matchingKey]!['sessionKey']!;
+  String ivSessionKey = keysData[matchingKey]!['iv']!;
+
+  Key masterKey = genMasterKey(env['SECURITY_KEY'] ?? '');
   String decryptedSessionedKey = decryptData(sessionKey, masterKey, IV.fromBase64(ivSessionKey));
-  print("Decrypted Sessioned Key: " + decryptedSessionedKey);
-
   String decryptedData = decryptData(encVal, Key.fromBase64(decryptedSessionedKey), IV.fromBase64(ivVal));
-  print("Decrypted Data: " + decryptedData);
+
+  Map<String, dynamic> decryptedDataMap = jsonDecode(decryptedData);
+  print("Timestamp: " + decryptedDataMap['timestamp']);
+  
+  print("Responses: " + decryptedDataMap['responses'].toString());
 
 }
 
@@ -46,4 +64,69 @@ String decryptVal(String encKey, String encVal, String ivVal) {
   final plaintextVal = encrypter.decrypt(ecc, iv: iv);
 
   return plaintextVal;
+}
+
+Map<String, Map<String, String>> parseIndKeysFile(String filename) {
+  File file = File(filename);
+  String content = file.readAsStringSync();
+  Map<String, Map<String, String>> data = {};
+
+  List<String> lines = content.split('\n');
+  String? currentSubject;
+
+  for (String line in lines) {
+    line = line.trim();
+    if (line.isEmpty || line.startsWith('@prefix')) continue;
+
+    if (line.startsWith('<') && line.contains('>') && line.contains('solidTerms:path')) {
+      RegExp subjectRegex = RegExp(r'<([^>]+)>');
+      RegExp pathRegex = RegExp(r'solidTerms:path "([^"]+)"');
+
+      Match? subjectMatch = subjectRegex.firstMatch(line);
+      Match? pathMatch = pathRegex.firstMatch(line);
+
+      if (subjectMatch != null && pathMatch != null) {
+        currentSubject = subjectMatch.group(1)!;
+        data[currentSubject] = {'path':pathMatch.group(1)!};
+      } 
+    } else if (currentSubject != null && line.contains('solidTerms:iv')) {
+      RegExp ivRegex = RegExp(r'solidTerms:iv "([^"]+)"');
+      Match? ivMatch = ivRegex.firstMatch(line);
+
+      if (ivMatch != null) {
+        data[currentSubject]!['iv'] = ivMatch.group(1)!;
+      }
+    } else if (currentSubject != null && line.contains('solidTerms:sessionKey')) {
+      RegExp sessionKeyRegex = RegExp(r'solidTerms:sessionKey "([^"]+)"');
+      Match? sessionKeyMatch = sessionKeyRegex.firstMatch(line);
+      if (sessionKeyMatch != null) {
+        data[currentSubject]!['sessionKey'] = sessionKeyMatch.group(1)!;
+      }
+    }
+  }
+
+  return data;
+}
+
+Map<String, String> parseBloodPressureFile(String filename) {
+  File file = File(filename);
+  String content = file.readAsStringSync();
+  Map<String, String> data = {};
+
+  RegExp pathRegex = RegExp(r'solidTerms:path "([^"]+)"');
+  RegExp ivRegex = RegExp(r'solidTerms:iv "([^"]+)"');
+  RegExp encDataRegex = RegExp(r'solidTerms:encData "([^"]+)"');
+
+    
+  Match? pathMatch = pathRegex.firstMatch(content);
+  Match? ivMatch = ivRegex.firstMatch(content);
+  Match? encDataMatch = encDataRegex.firstMatch(content);
+
+  if (pathMatch != null) data['path'] = pathMatch.group(1)!;
+  if (ivMatch != null) data['iv'] = ivMatch.group(1)!;
+  if (encDataMatch != null) data['encData'] = encDataMatch.group(1)!;
+  
+  return data;
+  
+
 }
