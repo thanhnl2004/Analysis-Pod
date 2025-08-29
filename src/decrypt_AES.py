@@ -4,6 +4,10 @@ from base64 import b64decode, b64encode
 from Cryptodome.Cipher import AES  # pip install pycryptodomex
 from Cryptodome.Util.Padding import unpad
 
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
 separator = '#'
 path_pred = 'path'
 iv_pred = 'iv'
@@ -81,19 +85,15 @@ def main(master_key, session_key_ct_b64, session_key_iv_b64, data_ct_b64, data_i
 
 
 if __name__ == '__main__':
-    security_key_str = ''
+    security_key_str = os.getenv('SECURITY_KEY')
     master_key = gen_master_key(security_key_str)
 
-    dirpath = 'server/patient01/healthpod'
-    # fname = 'blood_pressure_2025-08-18T08-00-00.json.enc.ttl'
-    # fname = 'blood_pressure_2025-08-19T08-00-00.json.enc.ttl'
-    # fname = 'blood_pressure_2025-08-20T08-00-00.json.enc.ttl'
-    fname = 'blood_pressure_2025-08-19T03-46-01.json.enc.ttl'
-    # fdatapath = f'{dirpath}/data/blood_pressure/{fname}'
-    # fkeypath = f'{dirpath}/encryption/ind-keys.ttl'
-
-    fdatapath = f'{fname}'
-    fkeypath = 'ind-keys.ttl'
+    # Change this line to point to any available blood pressure file for patient01
+    fname = 'blood_pressure_2025-08-19T08-00-00.json.enc.ttl'
+    
+    # Change these paths to use relative paths to the data directory
+    fdatapath = f'data/blood_pressure/patient01/{fname}'
+    fkeypath = 'data/blood_pressure/patient01/ind-keys.ttl'
 
     # Parsing ind-keys.ttl file
     result = parse_ttl(fkeypath)
