@@ -1,12 +1,15 @@
 import hashlib
 import json
+import os
+import glob
+import statistics  # Add this import
+from datetime import datetime, timedelta
 from rdflib import Graph, URIRef
 from base64 import b64decode, b64encode
 from Cryptodome.Cipher import AES
 from Cryptodome.Util.Padding import unpad
-
-import os
 from dotenv import load_dotenv
+
 load_dotenv()
 
 separator = '#'
@@ -85,37 +88,34 @@ def main(master_key, session_key_ct_b64, session_key_iv_b64, data_ct_b64, data_i
     return decrypt(data_ct, session_key, data_iv)
 
 
-if __name__ == '__main__':
-    security_key_str = os.getenv('SECURITY_KEY')
-    master_key = gen_master_key(security_key_str)
-
-    # Change this line to point to any available blood pressure file for patient01
-    fname = 'blood_pressure_2025-08-19T08-00-00.json.enc.ttl'
-    
-    # Change these paths to use relative paths to the data directory
-    fdatapath = f'data/blood_pressure/patient01/{fname}'
-    fkeypath = 'data/blood_pressure/patient01/ind-keys.ttl'
-
-    # Parsing ind-keys.ttl file
-    result = parse_ttl(fkeypath)
-    keyMap = {v[path_pred][0]: {iv_pred: v[iv_pred][0], session_key_pred: v[session_key_pred][0]} for k, v in result.items() if iv_pred in v}
-    fpath = f'healthpod/data/blood_pressure/{fname}'
-    session_key_ct_b64 = keyMap[fpath][session_key_pred]
-    session_key_iv_b64 = keyMap[fpath][iv_pred]
-
-    # Parse blood pressure .ttl file
-    result = parse_ttl(fdatapath)
-    dataKey = list(result.keys())[0]
-    dataMap = {iv_pred: result[dataKey][iv_pred][0], data_pred: result[dataKey][data_pred][0]}
-    data_ct_b64 = dataMap[data_pred]
-    data_iv_b64 = dataMap[iv_pred]
-
-    # Decrypt the data
-    data = main(master_key, session_key_ct_b64, session_key_iv_b64, data_ct_b64, data_iv_b64)
-    
-    # Parse the JSON data
+def decrypt_patient_file(master_key, patient_dir, filename):
+    """Decrypt a single blood pressure file for a patient"""
     try:
-        # Decode binary data to string and parse JSON
+        # File paths
+        fdatapath = f'{patient_dir}/{filename}'
+        fkeypath = f'{patient_dir}/ind-keys.ttl'
+        
+        # Parsing ind-keys.ttl file
+        result = parse_ttl(fkeypath)
+        keyMap = {v[path_pred][0]: {iv_pred: v[iv_pred][0], session_key_pred: v[session_key_pred][0]} 
+                 for k, v in result.items() if iv_pred in v}
+        
+        # Get encryption keys for this file
+        fpath = f'healthpod/data/blood_pressure/{filename}'
+        session_key_ct_b64 = keyMap[fpath][session_key_pred]
+        session_key_iv_b64 = keyMap[fpath][iv_pred]
+
+        # Parse blood pressure .ttl file
+        result = parse_ttl(fdatapath)
+        dataKey = list(result.keys())[0]
+        dataMap = {iv_pred: result[dataKey][iv_pred][0], data_pred: result[dataKey][data_pred][0]}
+        data_ct_b64 = dataMap[data_pred]
+        data_iv_b64 = dataMap[iv_pred]
+
+        # Decrypt the data
+        data = main(master_key, session_key_ct_b64, session_key_iv_b64, data_ct_b64, data_iv_b64)
+        
+        # Parse the JSON data
         json_str = data.decode('utf-8')
         parsed_data = json.loads(json_str)
         
@@ -123,20 +123,114 @@ if __name__ == '__main__':
         timestamp = parsed_data.get('timestamp')
         responses = parsed_data.get('responses', {})
 
-        systolic = responses.get('systolic')
-        diastolic = responses.get('diastolic') 
-        heart_rate = responses.get('heart_rate')
-        notes = responses.get('notes')
+        return {
+            'timestamp': timestamp,
+            'systolic': responses.get('systolic'),
+            'diastolic': responses.get('diastolic'),
+            'heart_rate': responses.get('heart_rate'),
+            'notes': responses.get('notes', '')
+        }
         
-        # Display the extracted data
-        print('Decrypted and parsed data:')
-        print(f'Timestamp: {timestamp}')
-        print(f'Systolic: {systolic} mmHg')
-        print(f'Diastolic: {diastolic} mmHg') 
-        print(f'Heart Rate: {heart_rate} bpm')
-        print(f'Notes: "{notes}"')
+    except Exception as e:
+        print(f'Error processing {filename} for {patient_dir}: {e}')
+        return None
+
+def process_all_patients():
+    """Process all patients and their blood pressure observations"""
+    security_key_str = os.getenv('SECURITY_KEY')
+    if not security_key_str:
+        raise ValueError("SECURITY_KEY not found in environment variables")
+    master_key = gen_master_key(security_key_str)
+    all_patient_data = {}
+
+    # Process patients 01 through 05
+    for patient_num in range(1, 6):
+        patient_id = f'patient{patient_num:02d}'
+        patient_dir = f'data/blood_pressure/{patient_id}'
         
-    except (json.JSONDecodeError, UnicodeDecodeError) as e:
-        print(f'Error parsing JSON data: {e}')
-        print('Raw decrypted data:')
-        print(data)
+        print(f'Processing {patient_id}...')
+        
+        # Get all blood pressure files for this patient
+        blood_pressure_files = glob.glob(f'{patient_dir}/blood_pressure_*.json.enc.ttl')
+        blood_pressure_files.sort()  
+        
+        patient_observations = []
+        
+        for file_path in blood_pressure_files:
+            filename = os.path.basename(file_path)
+            
+            # Decrypt and parse the file
+            observation = decrypt_patient_file(master_key, patient_dir, filename)
+            
+            if observation:
+                patient_observations.append(observation)
+                print(f'Processed {filename}')
+            else:
+                print(f'Failed to process {filename}')
+        
+        # Store patient data
+        all_patient_data[patient_id] = patient_observations
+        print(f'Processed {len(patient_observations)} observations for {patient_id}\n')
+    
+    return all_patient_data
+
+def analyze_all_patients_data(all_patient_data):
+    """Display a summary of all patient data"""
+    print('=' * 60)
+    print('SUMMARY OF ALL PATIENT DATA')
+    print('=' * 60)
+    
+    for patient_id, observations in all_patient_data.items():
+        print(f'\n{patient_id}:')
+        print(f'  Total observations: {len(observations)}')
+        
+        if observations:
+            # Get all values for calculations
+            systolic_values = [obs['systolic'] for obs in observations if obs['systolic'] is not None]
+            diastolic_values = [obs['diastolic'] for obs in observations if obs['diastolic'] is not None]
+            hr_values = [obs['heart_rate'] for obs in observations if obs['heart_rate'] is not None]
+            
+            if systolic_values:
+                # Calculate statistics for systolic
+                systolic_avg = statistics.mean(systolic_values)
+                systolic_median = statistics.median(systolic_values)
+                systolic_min = min(systolic_values)
+                systolic_max = max(systolic_values)
+                
+                # Calculate statistics for diastolic
+                diastolic_avg = statistics.mean(diastolic_values)
+                diastolic_median = statistics.median(diastolic_values)
+                diastolic_min = min(diastolic_values)
+                diastolic_max = max(diastolic_values)
+                
+                # Calculate statistics for heart rate
+                hr_avg = statistics.mean(hr_values)
+                hr_median = statistics.median(hr_values)
+                hr_min = min(hr_values)
+                hr_max = max(hr_values)
+                
+                # Display statistics
+                print(f'  Systolic Blood Pressure:')
+                print(f'    Average: {systolic_avg:.1f} mmHg')
+                print(f'    Median:  {systolic_median:.1f} mmHg')
+                print(f'    Range:   {systolic_min}-{systolic_max} mmHg')
+                
+                print(f'  Diastolic Blood Pressure:')
+                print(f'    Average: {diastolic_avg:.1f} mmHg')
+                print(f'    Median:  {diastolic_median:.1f} mmHg')
+                print(f'    Range:   {diastolic_min}-{diastolic_max} mmHg')
+                
+                print(f'  Heart Rate:')
+                print(f'    Average: {hr_avg:.1f} bpm')
+                print(f'    Median:  {hr_median:.1f} bpm')
+                print(f'    Range:   {hr_min}-{hr_max} bpm')
+                
+                print(f'  Date Range: {observations[0]["timestamp"]} to {observations[-1]["timestamp"]}')
+            else:
+                print(f'  No valid data found for calculations')
+
+if __name__ == '__main__':
+    all_patient_data = process_all_patients()
+    analyze_all_patients_data(all_patient_data)
+    
+    # all_patient_data[patient_id][observation_index][field]
