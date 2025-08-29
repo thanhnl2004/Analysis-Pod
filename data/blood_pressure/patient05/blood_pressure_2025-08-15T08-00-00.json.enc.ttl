@@ -1,0 +1,7 @@
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix solidTerms: <https://solidcommunity.au/predicates/terms#> .
+
+<https://pods.test.solidcommunity.au/patient05/healthpod/data/blood_pressure/blood_pressure_2025-08-15T08-00-00.json.enc.ttl>
+    solidTerms:path "healthpod/data/blood_pressure/blood_pressure_2025-08-15T08-00-00.json.enc.ttl"^^xsd:string ;
+    solidTerms:iv "TJSZiDHv0ZmlN+lFguuXIA=="^^xsd:string ;
+    solidTerms:encData "ohEna3lYjFDjsQskj7xscvBGuDrzSbG5INNXdgtnwQbhgCZ3Knc4AKyeituh94xTQML0S42ekUtQUa5tzAmo9yev0v8YLX6s3eloU7zq7ARvCv1mBFWGCyPoOMHidAIrPnTXotK9gUbU2Rlpb1zoGA=="^^xsd:string .

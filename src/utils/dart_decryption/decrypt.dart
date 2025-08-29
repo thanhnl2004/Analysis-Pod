@@ -9,8 +9,8 @@ void main(List<String> arguments) {
   var env = DotEnv(includePlatformEnvironment: true)
     ..load(['.env']);
 
-  Map<String, Map<String, String>> keysData = parseIndKeysFile('ind-keys.ttl');
-  Map<String, String> bloodPressureData = parseBloodPressureFile('blood_pressure_2025-08-19T03-46-01.json.enc.ttl');
+  Map<String, Map<String, String>> keysData = parseIndKeysFile('../ind-keys.ttl');
+  Map<String, String> bloodPressureData = parseBloodPressureFile('../blood_pressure_2025-08-19T03-46-01.json.enc.ttl');
   String targetPath = bloodPressureData['path']!;
   String ivVal = bloodPressureData['iv']!;
   String encVal = bloodPressureData['encData']!;
