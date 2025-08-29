@@ -1,7 +1,8 @@
 import hashlib
-from rdflib import Graph, URIRef  # pip install rdflib
+import json
+from rdflib import Graph, URIRef
 from base64 import b64decode, b64encode
-from Cryptodome.Cipher import AES  # pip install pycryptodomex
+from Cryptodome.Cipher import AES
 from Cryptodome.Util.Padding import unpad
 
 import os
@@ -109,6 +110,33 @@ if __name__ == '__main__':
     data_ct_b64 = dataMap[data_pred]
     data_iv_b64 = dataMap[iv_pred]
 
+    # Decrypt the data
     data = main(master_key, session_key_ct_b64, session_key_iv_b64, data_ct_b64, data_iv_b64)
-    print('Decrypted data:')
-    print(data)
+    
+    # Parse the JSON data
+    try:
+        # Decode binary data to string and parse JSON
+        json_str = data.decode('utf-8')
+        parsed_data = json.loads(json_str)
+        
+        # Extract individual fields
+        timestamp = parsed_data.get('timestamp')
+        responses = parsed_data.get('responses', {})
+
+        systolic = responses.get('systolic')
+        diastolic = responses.get('diastolic') 
+        heart_rate = responses.get('heart_rate')
+        notes = responses.get('notes')
+        
+        # Display the extracted data
+        print('Decrypted and parsed data:')
+        print(f'Timestamp: {timestamp}')
+        print(f'Systolic: {systolic} mmHg')
+        print(f'Diastolic: {diastolic} mmHg') 
+        print(f'Heart Rate: {heart_rate} bpm')
+        print(f'Notes: "{notes}"')
+        
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        print(f'Error parsing JSON data: {e}')
+        print('Raw decrypted data:')
+        print(data)
