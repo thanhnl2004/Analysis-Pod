@@ -18,6 +18,8 @@ iv_pred = 'iv'
 session_key_pred = 'sessionKey'
 data_pred = 'encData'
 
+NUM_OF_PATIENTS = 10
+
 
 def parse_ttl(fname):
     # Parse a .ttl file into a dictionary
@@ -144,7 +146,7 @@ def process_all_patients():
     all_patient_data = {}
 
     # Process patients 01 through 05
-    for patient_num in range(1, 6):
+    for patient_num in range(1, NUM_OF_PATIENTS + 1):
         patient_id = f'patient{patient_num:02d}'
         patient_dir = f'data/blood_pressure/{patient_id}'
         
