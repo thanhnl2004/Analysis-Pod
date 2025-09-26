@@ -1,0 +1,38 @@
+{
+    "patient_id": "patient04",
+    "descriptive_statistics": {
+        "systolic": {
+            "count": 20,
+            "mean": 138.75,
+            "median": 131.5,
+            "std": 26.84,
+            "min": 96.0,
+            "max": 193.0,
+            "range": 97.0,
+            "percentile_25": 123.75,
+            "percentile_75": 152.0
+        },
+        "diastolic": {
+            "count": 20,
+            "mean": 87.2,
+            "median": 85.0,
+            "std": 21.25,
+            "min": 64.0,
+            "max": 131.0,
+            "range": 67.0,
+            "percentile_25": 70.0,
+            "percentile_75": 91.0
+        },
+        "heart_rate": {
+            "count": 20,
+            "mean": 79.25,
+            "median": 80.5,
+            "std": 11.86,
+            "min": 60.0,
+            "max": 98.0,
+            "range": 38.0,
+            "percentile_25": 69.75,
+            "percentile_75": 89.0
+        }
+    }
+}
