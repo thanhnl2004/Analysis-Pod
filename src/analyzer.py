@@ -1,87 +1,99 @@
-import os
+from datetime import datetime
 import pandas as pd
+import sys
+import os
+import glob
+from dotenv import load_dotenv
+
+from decrypt import (
+    gen_master_key, 
+    decrypt_patient_file,
+    NUM_OF_PATIENTS
+)
+
+load_dotenv()
+
+BASE_DIR = "/opt/solid"
 
 class Analyzer:
-    def __init__(self, data_dir="data"):
-        self.data_dir = data_dir
+    def __init__(self, base_dir):
+        self.base_dir = base_dir
 
-    def read_all_patients_data(self):
-        patients_data = {}
 
-        csv_files = [f for f in os.listdir(self.data_dir) if f.endswith(".csv")]
-
-        for file_path in csv_files:
-            try:
-                patient_id = file_path.split("_")[1].replace(".csv", "")
-                df = pd.read_csv(os.path.join(self.data_dir, file_path))
-                patients_data[patient_id] = df
-            except Exception as e:
-                print(f"Error reading file {file_path}: {e}")
-
-        if not patients_data:
-            print("No patients data found")
-            return None
-
-        return patients_data
-
-    def analyze_individual_patient_data(self, patients_data):
-        patient_averages = {}
-
-        for patient_id, df in patients_data.items():
-            avg_systolic = df["systolic"].mean()
-            avg_diastolic = df["diastolic"].mean()
-            avg_heart_rate = df["heart_rate"].mean()
-
-            patient_averages[patient_id] = {
-                "avg_systolic": avg_systolic,
-                "avg_diastolic": avg_diastolic,
-                "avg_heart_rate": avg_heart_rate,
-            }
-
-        return patient_averages
-
-    def analyze_all_patients_data(self, patients_data):
-        all_data = pd.concat(patients_data.values(), ignore_index=True)
-
-        averages = {}
-        averages["avg_systolic"] = all_data["systolic"].mean()
-        averages["avg_diastolic"] = all_data["diastolic"].mean()
-        averages["avg_heart_rate"] = all_data["heart_rate"].mean()
-
-        return averages
-    
-    def print_results(self):
-        patients_data = self.read_all_patients_data()
-
-        if not patients_data:
-            print("No patients data found")
-            return
+    def get_all_ttl_files(self, patient_id):
+        blood_pressure_dir = os.path.join(
+            self.base_dir,
+            "server",
+            f"patient{patient_id}",
+            "healthpod",
+            "data",
+            "blood_pressure"
+        )
+        if not os.path.exists(blood_pressure_dir):
+            print(f"Directory not found: {blood_pressure_dir}")
+            return {}
         
-        print(f"Total number of patients: {len(patients_data)}")
+        ttl_files = glob.glob(os.path.join(blood_pressure_dir, "*.ttl"))
 
-        print("\nINDIVIDUAL PATIENTS AVERAGES")
-        print("-" * 30)
-        patient_averages = self.analyze_individual_patient_data(patients_data)
+        return ttl_files
 
-        for patient_id in sorted(patient_averages.keys()):
-            avg = patient_averages[patient_id]
-            print(f"Patient {patient_id}:")
-            print(f"Average systolic: {avg['avg_systolic']:.2f}")
-            print(f"Average diastolic: {avg['avg_diastolic']:.2f}")
-            print(f"Average heart rate: {avg['avg_heart_rate']:.2f}\n")
-
-        overall_averages = self.analyze_all_patients_data(patients_data)
-        print("\nOVERALL AVERAGES")
-        print("-" * 30)
-        print(f"Average systolic: {overall_averages['avg_systolic']:.2f}")
-        print(f"Average diastolic: {overall_averages['avg_diastolic']:.2f}")
-        print(f"Average heart rate: {overall_averages['avg_heart_rate']:.2f}")
-            
-            
+    def decrypt_all_patients_to_dataframes(self):
+        """
+        Decrypt all patient data and convert to pandas DataFrames.
+        """
+        # Get the security key
+        security_key_str = os.getenv('SECURITY_KEY')
+        if not security_key_str:
+            print("SECURITY_KEY not found in .env file!")
+            return {}
         
-if __name__ == "__main__":
-    analyzer = Analyzer()
-    analyzer.print_results()
+        # Generate master key 
+        master_key = gen_master_key(security_key_str)
+        patient_dataframes = {}
+        
+        # Process patients 01 through NUM_OF_PATIENTS
+        for patient_id in range(1, NUM_OF_PATIENTS + 1):
+            blood_pressure_files = self.get_all_ttl_files(patient_id)
+
+            patient_observations = []
+            for blood_pressure_file in blood_pressure_files:
+                filename = os.path.basename(blood_pressure_file)
+                patient_dir = os.path.join(
+                    self.base_dir,
+                    "server",
+                    f"patient{patient_id}",
+                )
+                
+                observation = decrypt_patient_file(master_key, patient_dir, filename)
+                
+                if observation:
+                    patient_observations.append(observation)
+            
+            if patient_observations:
+                # Convert list of dictionaries to DataFrame 
+                df = pd.DataFrame(patient_observations)
+                
+                # Convert timestamp to datetime
+                df['timestamp'] = pd.to_datetime(df['timestamp'])
+                
+                # Convert columns data to numeric
+                numeric_columns = ['systolic', 'diastolic', 'heart_rate']
+                for col in numeric_columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+                
+                # Sort by timestamp
+                df = df.sort_values('timestamp').reset_index(drop=True)
+                
+                # Add patient_id column for reference
+                df['patient_id'] = patient_id
+                
+                patient_dataframes[patient_id] = df
+                print(f'Created DataFrame for {patient_id}: {len(df)} observations')
+            else:
+                print(f'No data found for {patient_id}')
+        
+        print(f"\nSuccessfully created {len(patient_dataframes)} DataFrames")
+        return patient_dataframes
 
 
 
