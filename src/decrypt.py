@@ -2,7 +2,7 @@ import hashlib
 import json
 import os
 import glob
-import statistics  # Add this import
+import statistics  
 from datetime import datetime, timedelta
 from rdflib import Graph, URIRef
 from base64 import b64decode, b64encode
@@ -90,48 +90,47 @@ def main(master_key, session_key_ct_b64, session_key_iv_b64, data_ct_b64, data_i
 
 
 def decrypt_patient_file(master_key, patient_dir, filename):
-    """Decrypt a single blood pressure file for a patient"""
     try:
-        # File paths
-        fdatapath = f'{patient_dir}/{filename}'
-        fkeypath = f'{patient_dir}/ind-keys.ttl'
-        
-        # Parsing ind-keys.ttl file
+        # Path to encrypted TTL file
+        fdatapath = os.path.join(
+            patient_dir, "healthpod", "data", "blood_pressure", filename
+        )
+
+        fkeypath = os.path.join(
+            patient_dir, "healthpod", "encryption", "ind-keys.ttl"
+        )
+
+        # Parse keys
         result = parse_ttl(fkeypath)
-        keyMap = {v[path_pred][0]: {iv_pred: v[iv_pred][0], session_key_pred: v[session_key_pred][0]} 
-                 for k, v in result.items() if iv_pred in v}
-        
-        # Get encryption keys for this file
-        fpath = f'healthpod/data/blood_pressure/{filename}'
+        keyMap = {
+            v[path_pred][0]: {iv_pred: v[iv_pred][0], session_key_pred: v[session_key_pred][0]}
+            for k, v in result.items() if iv_pred in v
+        }
+
+        # Logical key used in ind-keys.ttl
+        fpath = "healthpod/data/blood_pressure/" + filename
+
         session_key_ct_b64 = keyMap[fpath][session_key_pred]
         session_key_iv_b64 = keyMap[fpath][iv_pred]
 
-        # Parse blood pressure .ttl file
+        # Parse encrypted data TTL
         result = parse_ttl(fdatapath)
         dataKey = list(result.keys())[0]
         dataMap = {iv_pred: result[dataKey][iv_pred][0], data_pred: result[dataKey][data_pred][0]}
         data_ct_b64 = dataMap[data_pred]
         data_iv_b64 = dataMap[iv_pred]
 
-        # Decrypt the data
+        # Decrypt and parse JSON
         data = main(master_key, session_key_ct_b64, session_key_iv_b64, data_ct_b64, data_iv_b64)
-        
-        # Parse the JSON data
-        json_str = data.decode('utf-8')
-        parsed_data = json.loads(json_str)
-        
-        # Extract individual fields
-        timestamp = parsed_data.get('timestamp')
-        responses = parsed_data.get('responses', {})
+        parsed = json.loads(data.decode("utf-8"))
 
         return {
-            'timestamp': timestamp,
-            'systolic': responses.get('systolic'),
-            'diastolic': responses.get('diastolic'),
-            'heart_rate': responses.get('heart_rate'),
-            'notes': responses.get('notes', '')
+            "timestamp": parsed.get("timestamp"),
+            "systolic": parsed.get("responses", {}).get("systolic"),
+            "diastolic": parsed.get("responses", {}).get("diastolic"),
+            "heart_rate": parsed.get("responses", {}).get("heart_rate"),
+            "notes": parsed.get("responses", {}).get("notes", ""),
         }
-        
     except Exception as e:
-        print(f'Error processing {filename} for {patient_dir}: {e}')
+        print(f"Error processing {filename} for {patient_dir}: {e}")
         return None
