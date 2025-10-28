@@ -14,17 +14,17 @@ from urllib.parse import urlparse
 from decrypt import (
     gen_master_key, 
     decrypt_patient_file,
-    NUM_OF_PATIENTS
+    NUM_OF_PATIENTS,
+    path_pred,
+    iv_pred,
+    session_key_pred,
+    data_pred
 )
 
 BASE_DIR = "/opt/solid"
 
 apps_terms = 'https://solidcommunity.au/predicates/terms#'
 app_name = 'healthpod'
-path_pred = 'path'
-iv_pred = 'iv'
-session_key_pred = 'sessionKey'
-data_pred = 'encData'
 
 class Analyser:
     def __init__(self, base_dir, security_key):
@@ -49,7 +49,7 @@ class Analyser:
     def upload_encrypted_file(self, json_data, destination_path, patient_id):
         """Save JSON data as encrypted .json.enc.ttl file"""
         if not self.master_key:
-            raise ValueError("Master key not set. Call set_master_key() first.")
+            raise ValueError("Master key not set.")
 
         # Convert JSON to string with proper indentation
         file_content = json.dumps(json_data, indent=4, ensure_ascii=False)
@@ -133,7 +133,7 @@ class Analyser:
         return os.path.join(self.base_dir, "server", f"patient{pid:02d}")
 
 
-    def get_all_ttl_files(self, patient_id):
+    def get_all_blood_pressure_files(self, patient_id):
         blood_pressure_dir = os.path.join(
             self.patient_dir(patient_id),
             "healthpod",
@@ -144,33 +144,33 @@ class Analyser:
             print(f"Directory not found: {blood_pressure_dir}")
             return {}
         
-        ttl_files = glob.glob(os.path.join(blood_pressure_dir, "blood_pressure*.ttl"))
+        blood_pressure_files = glob.glob(os.path.join(blood_pressure_dir, "blood_pressure*.ttl"))
 
-        return ttl_files
+        return blood_pressure_files
 
 
     def decrypt_all_patients(self):
         """
         Decrypt all patient data and convert to pandas DataFrames.
         """
-        patient_dataframes = {}
+        patient_dfs = {}
         # Process patients 01 through NUM_OF_PATIENTS
         for patient_id in range(1, NUM_OF_PATIENTS + 1):
-            blood_pressure_files = self.get_all_ttl_files(patient_id)
+            blood_pressure_files = self.get_all_blood_pressure_files(patient_id)
 
-            patient_observations = []
+            observations = []
             for blood_pressure_file in blood_pressure_files:
                 filename = os.path.basename(blood_pressure_file)
                 patient_dir = self.patient_dir(patient_id)
                 observation = decrypt_patient_file(self.master_key, patient_dir, filename)
                 
                 if observation:
-                    patient_observations.append(observation)
-            
-            if patient_observations:
-                # Convert list of dictionaries to DataFrame 
-                df = pd.DataFrame(patient_observations)
-                
+                    observations.append(observation)
+
+            if observations:
+                # Convert list of dictionaries to DataFrame
+                df = pd.DataFrame(observations)
+
                 # Convert timestamp to datetime
                 df['timestamp'] = pd.to_datetime(df['timestamp'])
                 
@@ -185,74 +185,23 @@ class Analyser:
                 # Add patient_id column for reference
                 df['patient_id'] = patient_id
                 
-                patient_dataframes[patient_id] = df
-                print(f'Created DataFrame for {patient_id}: {len(df)} observations')
+                patient_dfs[patient_id] = df
+                print(f'Created DataFrame for patient {patient_id:02d}: {len(df)} observations')
             else:
                 print(f'No data found for {patient_id}')
         
-        print(f"\nSuccessfully created {len(patient_dataframes)} DataFrames")
-        return patient_dataframes
+        print(f"Successfully created {len(patient_dfs)} DataFrames\n")
+        return patient_dfs
     
 
     def generate_summary(self, patient_dfs, export_summaries=True, export_format='json'):
-        if not patient_dfs:
-            print("No patient dataframes provided; skipping statistics.")
-            return pd.DataFrame()
-
-        summary_stats = []
-        for patient_id, df in patient_dfs.items():
-            blood_pressure_dir = os.path.join(
-                self.patient_dir(patient_id), 
-                "healthpod", 
-                "data", 
-                "blood_pressure"
-            )
-            patient_json_data = {"patient id": int(patient_id)}
-            descriptive_stats = {}
-            numeric_cols = ['systolic', 'diastolic', 'heart_rate']
-
-            for col in numeric_cols:
-                if col in df.columns:
-                    values = df[col].dropna()
-                    if len(values) > 0:
-                        descriptive_stats[col] = {
-                            'count': int(len(values)),
-                            'mean': round(float(values.mean()), 2),
-                            'median': round(float(values.median()), 2),
-                            'std': round(float(values.std()), 2),
-                            'min': round(float(values.min()), 2),
-                            'max': round(float(values.max()), 2),
-                            'range': round(float(values.max() - values.min()), 2),
-                            'percentile_25': round(float(values.quantile(0.25)), 2),
-                            'percentile_75': round(float(values.quantile(0.75)), 2),
-                        }
-
-            patient_json_data['descriptive_statistics'] = descriptive_stats
-
-            summary = {'patient_id': int(patient_id), 'total_observations': int(len(df))}
-            if 'timestamp' in df.columns and df['timestamp'].notna().any():
-                summary['date_range_days'] = int((df['timestamp'].max() - df['timestamp'].min()).days)
-            for col in numeric_cols:
-                if col in df.columns and df[col].notna().any():
-                    v = df[col].dropna()
-                    summary.update({
-                        f'{col}_mean': float(v.mean()),
-                        f'{col}_median': float(v.median()),
-                        f'{col}_std': float(v.std()),
-                        f'{col}_min': float(v.min()),
-                        f'{col}_max': float(v.max()),
-                        f'{col}_range': float(v.max() - v.min()),
-                    })
-            summary_stats.append(summary)
-        summary_df = pd.DataFrame(summary_stats)
-
         # Create aggregated statistics across all patients (privacy-preserving)
         if export_summaries and export_format.lower() == 'json':
             # Combine all patient data for aggregated statistics
             all_data = pd.concat(patient_dfs.values(), ignore_index=True)
             
             numeric_cols = ['systolic', 'diastolic', 'heart_rate']
-            aggregated_stats = {
+            summary_data = {
                 'total_patients': int(len(patient_dfs)),
                 'total_observations': int(len(all_data)),
             }
@@ -261,7 +210,7 @@ class Analyser:
                 if col in all_data.columns:
                     values = all_data[col].dropna()
                     if len(values) > 0:
-                        aggregated_stats[col] = {
+                        summary_data[col] = {
                             'mean': round(float(values.mean()), 2),
                             'median': round(float(values.median()), 2),
                             'std': round(float(values.std()), 2),
@@ -293,16 +242,14 @@ class Analyser:
                                     'range': round(float(values.max() - values.min()), 2),
                                 }
 
-                    overall_for_patient = {
-                        "aggregated_statistics": aggregated_stats,
+                    patient_data = {
+                        "aggregated_statistics": summary_data,
                         "patient_statistics": patient_statistics,
                     }
                     
                     destination_path = f'{app_name}/data/blood_pressure/overall_summary.json.enc.ttl'
-                    self.upload_encrypted_file(overall_for_patient, destination_path, patient_id)
-                    print(f"Saved encrypted aggregated summary for patient {patient_id:02d}")
-
-        return summary_df
+                    self.upload_encrypted_file(patient_data, destination_path, patient_id)
+                    print(f"Saved encrypted summary data for patient {patient_id:02d}")
 
 
 if __name__ == "__main__":
@@ -314,9 +261,7 @@ if __name__ == "__main__":
     analyser = Analyser(BASE_DIR, security_key_str)
 
     patient_dfs = analyser.decrypt_all_patients()
-    summary_df = analyser.generate_summary(patient_dfs, export_summaries=True, export_format='json')
-    print("\nSummary Statistics DataFrame:")
-    print(summary_df)
+    analyser.generate_summary(patient_dfs, export_summaries=True, export_format='json')
 
 
 
